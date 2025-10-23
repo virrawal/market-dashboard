@@ -5,6 +5,7 @@ load_dotenv()
 import streamlit as st
 import pandas as pd
 import numpy as np
+import yfinance as yf
 
 LITE = os.getenv("LITE_MODE") == "1"
 
@@ -34,5 +35,30 @@ df["ma200"] = df["close"].rolling(200).mean()
 
 # Display chart
 st.line_chart(df[["close", "ma50", "ma200"]])
+
+# Magnificent Seven 50/200-Day Moving Average Status
+st.header("Magnificent Seven 50/200-Day Moving Average Status")
+
+MAG7 = ["AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "NVDA"]
+
+@st.cache_data(ttl=3600)
+def get_ma_indicator(ticker: str):
+    data = yf.download(ticker, period="1y")
+    data["MA50"] = data["Close"].rolling(window=50).mean()
+    data["MA200"] = data["Close"].rolling(window=200).mean()
+    data = data.dropna()
+    last = data.iloc[-1]
+    signal = "Bullish" if last["MA50"] > last["MA200"] else "Bearish"
+    return {
+        "Ticker": ticker,
+        "Close": round(last["Close"], 2),
+        "MA50": round(last["MA50"], 2),
+        "MA200": round(last["MA200"], 2),
+        "Signal": signal,
+    }
+
+ma_rows = [get_ma_indicator(t) for t in MAG7]
+ma_df = pd.DataFrame(ma_rows)
+st.dataframe(ma_df)
 
 st.success("Running inside GitHub Codespaces. Port 8501 is forwarded automatically.")
